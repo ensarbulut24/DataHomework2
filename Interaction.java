@@ -1,30 +1,21 @@
 package src;
 
 public class Interaction {
-    private Protein source;
-    private Protein destination;
-    private double weight;
+    private Protein s;
+    private Protein d;
+    private double w;
 
-    public Interaction(Protein source, Protein destination, double weight) {
-        this.source = source;
-        this.destination = destination;
-        this.weight = weight;
+    public Interaction(Protein s, Protein d, double w) {
+        this.s = s;
+        this.d = d;
+        this.w = w;
     }
 
-    public Protein getSource() {
-        return source;
-    }
-
-    public Protein getDestination() {
-        return destination;
-    }
-
-    public double getWeight() {
-        return weight;
-    }
+    public Protein getSource() { return s; }
+    public Protein getDest() { return d; }
+    public double getW() { return w; }
     
-    @Override
     public String toString() {
-        return source.getId() + " -> " + destination.getId() + " : " + weight;
+        return s.getId() + " -> " + d.getId() + " (" + w + ")";
     }
 }

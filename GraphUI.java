@@ -1,151 +1,86 @@
 package src;
 
 import javax.swing.*;
-import javax.swing.border.EmptyBorder;
-import javax.swing.text.DefaultCaret;
 import java.awt.*;
-import java.io.File;
-import java.io.OutputStream;
-import java.io.PrintStream;
+import java.io.*;
 
 public class GraphUI extends JFrame {
-
-    private static final long serialVersionUID = 1L;
-
-    private JTextField txtFilePath;
-    private JTextField txtThreshold;
-    private JTextField txtStartNode;
-    private JTextArea txtConsole;
-    private JButton btnLoad, btnMetrics, btnBFS;
-    
-    private PPIGraph graph;
+    JTextField tfPath, tfTh, tfId1, tfId2;
+    JTextArea area;
+    PPIGraph graph;
 
     public GraphUI() {
-        setTitle("CME 2201 - PPI Graph Analyzer");
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setBounds(100, 100, 900, 600);
-        setLayout(new BorderLayout(10, 10));
+        setTitle("PPI Assignment (Edge List)");
+        setSize(900, 700);
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
+        setLayout(new BorderLayout());
 
         graph = new PPIGraph();
 
-        JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        topPanel.setBorder(new EmptyBorder(10, 10, 0, 10));
+        JPanel top = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        tfPath = new JTextField("9606.protein.links.v12.0.txt", 15);
+        JButton btnBrowse = new JButton("Browse");
+        tfTh = new JTextField("0.9", 4);
+        JButton btnLoad = new JButton("Load");
+        JButton btnMet = new JButton("Metrics");
 
-        txtFilePath = new JTextField("9606.protein.links.v12.0.txt", 20); 
-        JButton btnBrowse = new JButton("Browse...");
-        
-        JLabel lblTh = new JLabel("Threshold (0.0-1.0):");
-        txtThreshold = new JTextField("0.7", 5);
-        btnLoad = new JButton("LOAD GRAPH");
-        btnLoad.setBackground(new Color(60, 179, 113));
-        btnLoad.setForeground(Color.WHITE);
-        btnLoad.setFocusPainted(false);
+        top.add(new JLabel("File:")); top.add(tfPath); top.add(btnBrowse);
+        top.add(new JLabel("Th:")); top.add(tfTh);
+        top.add(btnLoad); top.add(btnMet);
+        add(top, BorderLayout.NORTH);
 
-        topPanel.add(new JLabel("File Path:"));
-        topPanel.add(txtFilePath);
-        topPanel.add(btnBrowse);
-        topPanel.add(Box.createHorizontalStrut(20));
-        topPanel.add(lblTh);
-        topPanel.add(txtThreshold);
-        topPanel.add(btnLoad);
+        area = new JTextArea();
+        area.setEditable(false);
+        area.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        add(new JScrollPane(area), BorderLayout.CENTER);
 
-        add(topPanel, BorderLayout.NORTH);
+        JPanel bot = new JPanel(new GridLayout(2, 1));
+        JPanel r1 = new JPanel();
+        JPanel r2 = new JPanel();
 
-        txtConsole = new JTextArea();
-        txtConsole.setEditable(false);
-        txtConsole.setFont(new Font("Monospaced", Font.PLAIN, 12));
-        txtConsole.setBackground(new Color(30, 30, 30));
-        txtConsole.setForeground(new Color(200, 200, 200));
-        
-        DefaultCaret caret = (DefaultCaret)txtConsole.getCaret();
-        caret.setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
+        tfId1 = new JTextField(10);
+        tfId2 = new JTextField(10);
+        JButton btnBFS = new JButton("BFS");
+        JButton btnDFS = new JButton("DFS");
+        JButton btnPaths = new JButton("FIND PATHS");
+        JButton btnSearch = new JButton("Search");
+        JButton btnCheck = new JButton("Check");
 
-        JScrollPane scrollPane = new JScrollPane(txtConsole);
-        scrollPane.setBorder(BorderFactory.createTitledBorder("Console Output"));
-        add(scrollPane, BorderLayout.CENTER);
+        r1.add(new JLabel("Start:")); r1.add(tfId1);
+        r1.add(btnSearch); r1.add(btnBFS); r1.add(btnDFS);
 
-        JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        bottomPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
+        r2.add(new JLabel("End:")); r2.add(tfId2);
+        r2.add(btnCheck); r2.add(btnPaths);
 
-        btnMetrics = new JButton("Calculate Metrics");
-        
-        JLabel lblStart = new JLabel("Protein ID:");
-        txtStartNode = new JTextField(15);
-        btnBFS = new JButton("Start BFS");
+        bot.add(r1); bot.add(r2);
+        add(bot, BorderLayout.SOUTH);
 
-        bottomPanel.add(btnMetrics);
-        bottomPanel.add(Box.createHorizontalStrut(30));
-        bottomPanel.add(lblStart);
-        bottomPanel.add(txtStartNode);
-        bottomPanel.add(btnBFS);
-
-        add(bottomPanel, BorderLayout.SOUTH);
-
-        redirectSystemStreams();
+        PrintStream out = new PrintStream(new OutputStream() {
+            public void write(int b) { area.append(String.valueOf((char)b)); area.setCaretPosition(area.getDocument().getLength()); }
+            public void write(byte[] b, int o, int l) { area.append(new String(b, o, l)); area.setCaretPosition(area.getDocument().getLength()); }
+        });
+        System.setOut(out); System.setErr(out);
 
         btnBrowse.addActionListener(e -> {
-            JFileChooser fileChooser = new JFileChooser();
-            fileChooser.setCurrentDirectory(new File(System.getProperty("user.dir")));
-            int result = fileChooser.showOpenDialog(this);
-            if (result == JFileChooser.APPROVE_OPTION) {
-                txtFilePath.setText(fileChooser.getSelectedFile().getAbsolutePath());
-            }
+            JFileChooser fc = new JFileChooser(".");
+            if(fc.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) tfPath.setText(fc.getSelectedFile().getAbsolutePath());
         });
 
-        btnLoad.addActionListener(e -> {
-            String path = txtFilePath.getText();
-            String thStr = txtThreshold.getText();
-            
-            btnLoad.setEnabled(false);
-            
-            new Thread(() -> {
-                try {
-                    double threshold = Double.parseDouble(thStr);
-                    graph.loadGraph(path, threshold);
-                } catch (Exception ex) {
-                    System.out.println("ERROR: " + ex.getMessage());
-                } finally {
-                    SwingUtilities.invokeLater(() -> btnLoad.setEnabled(true));
-                }
-            }).start();
+        btnLoad.addActionListener(e -> new Thread(() -> {
+            try { graph.load(tfPath.getText(), Double.parseDouble(tfTh.getText())); } 
+            catch(Exception ex) { System.out.println("Error."); }
+        }).start());
+
+        btnMet.addActionListener(e -> new Thread(() -> graph.metrics()).start());
+        btnBFS.addActionListener(e -> new Thread(() -> graph.bfs(tfId1.getText().trim())).start());
+        btnDFS.addActionListener(e -> new Thread(() -> graph.dfs(tfId1.getText().trim())).start());
+        btnSearch.addActionListener(e -> new Thread(() -> graph.search(tfId1.getText().trim())).start());
+        btnCheck.addActionListener(e -> new Thread(() -> graph.check(tfId1.getText().trim(), tfId2.getText().trim())).start());
+        
+        btnPaths.addActionListener(e -> {
+            String s = tfId1.getText().trim();
+            String d = tfId2.getText().trim();
+            if(!s.isEmpty() && !d.isEmpty()) new Thread(() -> graph.findAllPaths(s, d)).start();
         });
-
-        btnMetrics.addActionListener(e -> {
-            graph.printMetrics();
-        });
-
-        btnBFS.addActionListener(e -> {
-            String startId = txtStartNode.getText().trim();
-            if(startId.isEmpty()) {
-                System.out.println("Please enter a Protein ID!");
-                return;
-            }
-            new Thread(() -> graph.BFS(startId)).start();
-        });
-    }
-
-    private void redirectSystemStreams() {
-        OutputStream out = new OutputStream() {
-            @Override
-            public void write(int b) {
-                updateTextArea(String.valueOf((char) b));
-            }
-
-            @Override
-            public void write(byte[] b, int off, int len) {
-                updateTextArea(new String(b, off, len));
-            }
-
-            @Override
-            public void write(byte[] b) {
-                write(b, 0, b.length);
-            }
-        };
-        System.setOut(new PrintStream(out, true));
-        System.setErr(new PrintStream(out, true));
-    }
-
-    private void updateTextArea(final String text) {
-        SwingUtilities.invokeLater(() -> txtConsole.append(text));
     }
 }
